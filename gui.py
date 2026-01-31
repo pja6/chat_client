@@ -1,5 +1,29 @@
 #Paul Aguilar - Lab4 GUI
 from tkinter import *
+from socket import *
+
+
+def init_server():
+    
+    #af_inet for ipv4+port
+    sckt = socket(AF_INET, SOCK_STREAM)
+    
+    host = 'localhost' 
+    
+    port = 1234
+    
+    #init server
+    sckt.bind((host, port))
+    
+    #how many clients 
+    sckt.listen(1)
+    
+    
+    #return accepted connection
+    conn, addr = sckt.accept()
+    
+    return conn
+
 
 
 def GUI():
