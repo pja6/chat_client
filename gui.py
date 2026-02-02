@@ -6,11 +6,11 @@ from threading import *
 class chat_gui:
     def __init__(self, connection=None):
         self. connection=connection
-        self.gui_window = tk.TK()
+        self.gui_window = tk.Tk()
         self.gui_window.title("Chat")
         
         # disabled makes the window read only
-        self.chat_display = tk.Text(self.gui_window, state="disabled", height=10)
+        self.chat_display = tk.Text(self.gui_window, state="disabled", width=50, height=10)
         
         #pack is used to determine formatting, no param means handles automatically
         self.chat_display.pack()
@@ -24,4 +24,30 @@ class chat_gui:
         self.send_button.pack()
         
         
+    def send(self):
+        msg = self.text_field.get().strip()
+        if msg:
+            self.display(f"You: {msg}")
+            self.text_field.delete(0, tk.END)
+            
+            #TODO
+            if self.connection:
+                self.connection.send(msg)
+                
+    def display(self, msg):
+        self.chat_display.config(state='normal')
+        self.chat_display.insert(tk.END, msg +"\n")
+        self.chat_display.config(state='disabled')
+        self.chat_display.yview(tk.END)
         
+    def run(self):
+        self.gui_window.mainloop()
+        
+        
+class fake_connection:
+    def send(self, msg):
+        print("fake sending", msg)
+        
+if __name__ == "__main__":
+    gui=chat_gui(fake_connection())
+    gui.run()
