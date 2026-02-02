@@ -3,7 +3,7 @@ from tkinter import *
 from socket import *
 
 
-def init_server():
+def init_client():
     
     #af_inet for ipv4+port
     sckt = socket(AF_INET, SOCK_STREAM)
@@ -13,16 +13,8 @@ def init_server():
     port = 1234
     
     #init server
-    sckt.bind((host, port))
+    sckt.connect((host, port))
     
-    #how many clients 
-    sckt.listen(1)
-    
-    
-    #return accepted connection
-    conn, addr = sckt.accept()
-    
-    return conn
 
 
 
@@ -58,6 +50,7 @@ def GUI():
     
 def main():
     
+    init_client()
     GUI()
     
     
