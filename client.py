@@ -15,6 +15,8 @@ def init_client():
     #init server
     sckt.connect((host, port))
     
+    return S
+
 
 
 

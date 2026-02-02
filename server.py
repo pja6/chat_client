@@ -1,5 +1,7 @@
 #Paul Aguilar - Lab4 GUI
-from tkinter import *
+
+import tkinter as tk
+
 from socket import *
 
 
@@ -23,7 +25,7 @@ def init_server():
     conn, addr = sckt.accept()
     
     return conn
-
+ 
 
 
 def GUI():
@@ -51,6 +53,8 @@ def GUI():
     
     
     chatlog.place(x=6, y=6, )
+    textbox.place(x=6, y=401, height=20, width=265)
+    sendbutton.place(x=300, y=401, height=20, width=50)
     
     #program loop, keeps window open
     gui.mainloop()
