@@ -20,6 +20,20 @@ class chat_gui:
         #adding it to the window, fill the width of the window
         self.text_field.pack(fill='x')
         
+        self.username_label = tk.Label(self.gui_window, text="Username: ")
+        self.username_label.pack()
+        
+        #TODO
+        #input field for username
+        #self.username_entry = tk.Entry(self.gui_window)
+        #self.username_entry.pack()
+        
+        #self.connect_button = tk.Button(self.gui_window, text="CONNECT", command=self.connect_to_server)
+        #self.connect_button.pack(pady=5)
+        
+        #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
+        #self.disconnect_button.pack(pady=5)
+        
         self.send_button = tk.Button(self.gui_window, text="SEND", command=self.send)
         self.send_button.pack()
         
