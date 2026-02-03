@@ -11,14 +11,32 @@ class base_connection:
         self.socket = None
         
     def send(self, msg):
-        #needs to be used by subclass
-        raise NotImplementedError
+        if msg:
+            try:
+                self.socket.send((msg).encode('utf-8'))
+            except Exception as e:
+                print(f"No message: {e}")
     
     def start(self):
         raise NotImplementedError
     
     def close(self):
         raise NotImplementedError
+    
+    def _receive_loop(self):
+        while self.running:
+            try:
+                message = self.socket.recv(1024).decode('utf-8')
+                
+                if message: 
+                    self.on_msg_rcvd(message)
+                else:
+                    break
+            except Exception as e:
+                print(f"Error receiving: {e}")
+                self.running = False
+                break
+            
     
 class client_connect(base_connection):
     def __init__(self, host, port, on_msg_rcvd):
@@ -37,48 +55,59 @@ class client_connect(base_connection):
         receive_thread = Thread(target=self._receive_loop)
         receive_thread.daemon = True
         receive_thread.start()
-        
-    def _receive_loop(self):
-        while self.running:
-            try:
-               message = self.socket.recv(1024).decode('utf-8')
-               if not message:
-                   
-                   break
-            except Exception as e:
-                ConnectionResetError
-                pass
-            
-        
-    def send(self):
-        return
-        
-
     
     def close(self):
         return
+
+# class represents a connection the server accepted
+class client_handler(base_connection):
+    def __init__(self, client_socket, on_msg_rcvd):
+        super().__init__(on_msg_rcvd)
+        self.socket = client_socket
         
+    def start(self):
+        self.running = True
+        
+        receive_thread = Thread(target=self._receive_loop)
+        receive_thread.daemon=True
+        receive_thread.start()
+        
+    def close(self):
+        if self.socket:
+            self.running = False
+            self.socket.close()
+            
+            
+    
 class server_connect(base_connection):
     def __init__(self, port, on_msg_rcvd):
         super().__init__(on_msg_rcvd)
         self.port = port
+        self.running= False
+        self.listen_socket= None
+        self.connections =[]
         
     def start(self):
-        self.socket = socket(AF_INET, SOCK_STREAM)
-        self.socket.bind(('', self.port))
-        self.socket.listen(5)
+        #listening socket - bound by listen()
+        self.listen_socket = socket(AF_INET, SOCK_STREAM)
+        self.listen_socket.bind(('', self.port))
+        self.listen_socket.listen(2)
+        self.running = True
+        
+        print("Server listening...")
+        
         while self.running:
-            self.accept()
-        
-        
-    def listen(num_req):
-        return
-    
-    def accept(self):
-        return
-    
-    def send(self):
-        return
+
+            #connected client socket - created by accept
+            client_socket, address = self.listen_socket.accept()
+            print(f"Accepted connection from {address}")
+            
+            conn= client_handler(client_socket, self.on_msg_rcvd)
+            self.connections.append(conn)
+            conn.start()
+
+
 
     def close():
         return
+    
