@@ -44,7 +44,7 @@ class client_connect(base_connection):
         
         
     def start(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.connect((self.host, self.port))
         self.running = True
         
@@ -65,6 +65,7 @@ class client_handler(base_connection):
     def __init__(self, client_socket, on_msg_rcvd):
         super().__init__(on_msg_rcvd)
         self.socket = client_socket
+        self.username = None
         
     def start(self):
         self.running = True
@@ -101,7 +102,7 @@ class server_connect:
         self.running= False
         self.listen_socket= None
         #username : client_ip
-        self.connections ={}
+        self.clients ={}
         
     def start(self):
         #listening socket - bound by listen()
@@ -125,8 +126,7 @@ class server_connect:
             client_socket, address = self.listen_socket.accept()
             print(f"Accepted connection from {address}")
             
-            conn= client_handler(client_socket, self.broadcast)
-            self.connections.append(conn)
+            conn= client_handler(client_socket, self.route_message)
             conn.start()
 
 
@@ -136,6 +136,12 @@ class server_connect:
                 sender_conn.send("System|username taken")
                 return
         
+            sender_conn.username = sender_conn
+            self.clients[msg] = sender_conn
+            print(f"User logged in: {msg}")
+            sender_conn.send("System|Welcome to IM")
+            return
+    
         try:
             target_user, content = msg.split('|', 1)
             
@@ -151,6 +157,6 @@ class server_connect:
         self.running = False
         if self.listen_socket:
             self.listen_socket.close()
-        for conn in self.connections:
+        for conn in self.clients:
             conn.close()
     

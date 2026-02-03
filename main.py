@@ -62,13 +62,13 @@ class chat_gui:
        if not username:
            messagebox.showerror("Error", "Username can't be empty")
            return
-       self.connection = client_connect('localhost', 5001, self.recieve_msg)
+       self.connection = client_connect('localhost', 5001, self.receive_msg)
        try:
            self.connection.start()
            self.connection.send(username)
            
            self.username_entry.config(state='disabled')
-           self.btn_connect.config(state='disabled')
+           self.connect_button.config(state='disabled')
            self.display(f"System: Connected as {username}")
         
        except Exception as e:
@@ -79,7 +79,7 @@ class chat_gui:
         target=self.target_entry.get().strip()
         msg = self.text_field.get().strip()
         if not self.connection:
-            messsagebox.showerror("Error", "Not connected")
+            messagebox.showerror("Error", "Not connected")
             return
         if target and msg:
             self.display(f"To {target}: {msg}")
