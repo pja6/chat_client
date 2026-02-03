@@ -1,6 +1,5 @@
-
 from socket import *
-from threading import *
+from threading import Thread
 
 class base_connection:
     def __init__(self, on_msg_rcvd):
@@ -45,7 +44,7 @@ class client_connect(base_connection):
         
         
     def start(self):
-        self.socket = socket(AF_INET, SOCK_STREAM)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.host, self.port))
         self.running = True
         
@@ -101,7 +100,8 @@ class server_connect:
         self.port = port
         self.running= False
         self.listen_socket= None
-        self.connections =[]
+        #username : client_ip
+        self.connections ={}
         
     def start(self):
         #listening socket - bound by listen()
@@ -130,13 +130,22 @@ class server_connect:
             conn.start()
 
 
-    def broadcast(self, msg, sender=None):
-        print(f"Broadcasting: {msg}")
+    def route_message(self,msg, sender_conn):
+        if sender_conn.username is None:
+            if msg in self.clients:
+                sender_conn.send("System|username taken")
+                return
         
-        #send msg to all clients except sender
-        for conn in self.connections:
-            if conn != sender:
-                conn.send(msg)
+        try:
+            target_user, content = msg.split('|', 1)
+            
+            if target_user in self.clients:
+                target_conn = self.clients[target_user]
+                target_conn.send(f"{sender_conn.username}|{content}")
+            else:
+                sender_conn.send(f"System|User {target_user} not found.")
+        except:
+            sender_conn.send("System|Invalid format. Use: Recipient|Message")
         
     def close(self):
         self.running = False
