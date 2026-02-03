@@ -37,7 +37,7 @@ class base_connection:
                 self.running = False
                 break
             
-    
+#Actively connects to a server (has host/port, calls connect())   
 class client_connect(base_connection):
     def __init__(self, host, port, on_msg_rcvd):
         super().__init__(on_msg_rcvd)
@@ -55,9 +55,12 @@ class client_connect(base_connection):
         receive_thread = Thread(target=self._receive_loop)
         receive_thread.daemon = True
         receive_thread.start()
-    
+      
+
     def close(self):
-        return
+        self.running = False
+        if self.socket:
+            self.socket.close()
 
 # class represents a connection the server accepted
 class client_handler(base_connection):
@@ -71,17 +74,31 @@ class client_handler(base_connection):
         receive_thread = Thread(target=self._receive_loop)
         receive_thread.daemon=True
         receive_thread.start()
-        
+    
+    # overrides base class  
+    def _receive_loop(self):
+         while self.running:
+            try:
+                message = self.socket.recv(1024).decode('utf-8')
+                if message:
+                    # Pass sender
+                    self.on_msg_rcvd(message, self)  
+                else:
+                    break
+            except Exception as e:
+                print(f"Error receiving: {e}")
+                self.running = False
+                break
+   
     def close(self):
         if self.socket:
             self.running = False
             self.socket.close()
             
             
-    
-class server_connect(base_connection):
-    def __init__(self, port, on_msg_rcvd):
-        super().__init__(on_msg_rcvd)
+#Listens and creates client_handler objects   
+class server_connect:
+    def __init__(self, port):
         self.port = port
         self.running= False
         self.listen_socket= None
@@ -96,18 +113,35 @@ class server_connect(base_connection):
         
         print("Server listening...")
         
-        while self.running:
+       
+        accept_thread = Thread(target=self._accept_loop)
+        accept_thread.daemon=True
+        accept_thread.start()
 
+      
+    def _accept_loop(self):
+         while self.running:
             #connected client socket - created by accept
             client_socket, address = self.listen_socket.accept()
             print(f"Accepted connection from {address}")
             
-            conn= client_handler(client_socket, self.on_msg_rcvd)
+            conn= client_handler(client_socket, self.broadcast)
             self.connections.append(conn)
             conn.start()
 
 
-
-    def close():
-        return
+    def broadcast(self, msg, sender=None):
+        print(f"Broadcasting: {msg}")
+        
+        #send msg to all clients except sender
+        for conn in self.connections:
+            if conn != sender:
+                conn.send(msg)
+        
+    def close(self):
+        self.running = False
+        if self.listen_socket:
+            self.listen_socket.close()
+        for conn in self.connections:
+            conn.close()
     
