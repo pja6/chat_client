@@ -107,6 +107,7 @@ class server_connect:
     def start(self):
         #listening socket - bound by listen()
         self.listen_socket = socket(AF_INET, SOCK_STREAM)
+        self.listen_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.listen_socket.bind(('', self.port))
         self.listen_socket.listen(2)
         self.running = True

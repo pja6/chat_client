@@ -49,6 +49,10 @@ class chat_gui:
                 self.connection.send(msg)
                 
     def display(self, msg):
+        #need to schedule display
+        self.gui_window.after(0, self._do_display, msg)
+        
+    def _do_display(self, msg):
         self.chat_display.config(state='normal')
         self.chat_display.insert(tk.END, msg +"\n")
         self.chat_display.config(state='disabled')
@@ -57,11 +61,8 @@ class chat_gui:
     def run(self):
         self.gui_window.mainloop()
         
-        
-class fake_connection:
-    def send(self, msg):
-        print("fake sending", msg)
+
         
 if __name__ == "__main__":
-    gui=chat_gui(fake_connection())
+    gui=chat_gui()
     gui.run()
