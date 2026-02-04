@@ -1,5 +1,5 @@
 from socket import *
-from threading import Thread
+from threading import *
 
 class base_connection:
     def __init__(self, on_msg_rcvd):
@@ -136,7 +136,7 @@ class server_connect:
                 sender_conn.send("System|username taken")
                 return
         
-            sender_conn.username = sender_conn
+            sender_conn.username = msg
             self.clients[msg] = sender_conn
             print(f"User logged in: {msg}")
             sender_conn.send("System|Welcome to IM")

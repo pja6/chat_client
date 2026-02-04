@@ -28,32 +28,23 @@ class chat_gui:
         #pack is used to determine formatting, no param means handles automatically
         self.chat_display.pack(padx=10, pady=5)
         
+        #Choose recipient 
         tk.Label(self.gui_window, text="Send to (username):").pack()
         self.target_entry = tk.Entry(self.gui_window)
         self.target_entry.pack(fill='x', padx=10)
         
+        #write message
         tk.Label(self.gui_window, text="Message:").pack()
         self.text_field = tk.Entry(self.gui_window)
         self.text_field.pack(fill='x', padx=10, pady=5)
         self.text_field.bind('<Return>', lambda event: self.send()) 
-           
+        
+        #send it
         self.send_button = tk.Button(self.gui_window, text="SEND", command=self.send)
         self.send_button.pack(pady=5)
         
         
-        #entry is the text box to write in
-        self.text_field = tk.Entry(self.gui_window)
-        #adding it to the window, fill the width of the window
-        self.text_field.pack(fill='x')
-        
-        self.username_label = tk.Label(self.gui_window, text="Username: ")
-        self.username_label.pack()
-        
-        #TODO
-      
-        
-        
-        
+    #TODO
         #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
         #self.disconnect_button.pack(pady=5)
         
