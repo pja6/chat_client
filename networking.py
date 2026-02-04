@@ -1,5 +1,6 @@
 from socket import *
 from threading import *
+import crypto
 
 class base_connection:
     def __init__(self, on_msg_rcvd):
