@@ -1,0 +1,43 @@
+Paul Aguilar - Lab 4
+
+This set of programs launches a small client-server chat application with a simple gui to interact with. This is a simple application that only accepts 2 clients for the connection. The responsibilities of the application have been separated into separate files/classes:
+
+- main.py hold all of the gui code, setting up the frames for the chatbox and wiring up the logic from the connection file to the buttons
+
+- networking.py handles all of the networking required for the application. This is where the socket logic is implemented, the server, client handler, and client classes are declared. The purpose of having an additional class was to allow the server to continue listening, while the client handler dealt with the client connections.
+
+- encrypt.py hold all of the required functions for both the RSA algorithm and the Diffie-Hellman Algoririthm, these functions are used in the security class.
+
+- security.py handles all of the actual security, using the imported functions from encrypt, it handles the diffie-hellman key exchance and the rsa signing of the public value that's passed between clients.
+
+- client.py and server.py are primarily orchestration files that are called in main and start up the services and keep them running so they don't exit immediately.
+
+To run this program, ensure that all files are in the same directory. Three separate terminal windows are required, in each window run:
+
+		python3 main.py
+
+in one terminal use the s option to start the server
+use the c option on the other two for the independent chat windows that appear.
+
+From here, connect by inputting a username in the left text field, and after both have signed in, enter the recipient's name in the top text field, under the chat window, and your message in the text field below, then click the send button to see the message appear on your screen - and the recipient's screen.
+
+To exchange keys the process is similar, use the correct username, and click on secure handshake.
+
+
+
+
+
+Sources:
+https://jamnxdev.medium.com/multi-client-tcp-chat-with-tkinter-894030cce75d
+https://stackoverflow.com/questions/73629865/object-oriented-tkinter
+https://medium.com/swlh/lets-write-a-chat-app-in-python-f6783a9ac170
+https://www.geeksforgeeks.org/python/gui-chat-application-using-tkinter-in-python/
+https://crypto.stackexchange.com/questions/1975/what-should-be-the-size-of-a-diffie-hellman-private-key
+https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
+https://crypto.stackexchange.com/questions/83471/diffie-hellman-private-key-size
+https://www.geeksforgeeks.org/computer-networks/implementation-diffie-hellman-algorithm/
+https://www.geeksforgeeks.org/system-design/client-server-model/
+https://www.geeksforgeeks.org/python/socket-programming-python/
+https://www.geeksforgeeks.org/python/gui-chat-application-using-tkinter-in-python/
+https://www.ietf.org/rfc/rfc3526.txt
+https://tkdocs.com/tutorial/

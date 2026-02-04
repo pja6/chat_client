@@ -3,8 +3,6 @@ from tkinter import scrolledtext, messagebox
 from socket import *
 from threading import *
 from networking import client_connect, server_connect
-import security
-
 
 class chat_gui:
     def __init__(self, connection=None):

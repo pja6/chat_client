@@ -59,18 +59,27 @@ class client_connect(base_connection):
                     break
                 
                 parts = data.split("|")
-                if len(parts) >= 3:
+                msg_type = None
+                
+                # Minimum parts: Sender | Target | Type | DH_Pub | n | e | Sig = 7 parts
+                if len(parts) >= 6:
                     sender = parts[0]
                     msg_type = parts[1]
                 
                     
                     if msg_type == "DH_INIT":
-                        response = self.sec_mgr.verify_respond(sender, *parts[3:])
-                        if response: self.send(response)
+                        # DH_Pub, RSA_n, RSA_e, Sig (indices 3, 4, 5, 6)
+                        response = self.sec_mgr.verify_respond(sender, *parts[2:])
+                        if response: 
+                            self.send(response)
                         
                     elif msg_type == "DH_RESPONSE":
-                        if self.sec_mgr.finalize_secret(sender, *parts[3:]):
-                            print(f"Secure Link with {sender} ready...")
+                        print(f"[CLIENT] Received DH_RESPONSE from {sender}")
+                        if self.sec_mgr.finalize_secret(sender, *parts[2:]):
+                            print(f"[CLIENT] finalize_secret returned True!")
+                            self.on_msg_rcvd(f"Secure Link with {sender} ready...")
+                        else:
+                            print(f"[CLIENT] finalize_secret returned False!")
                     
                     #just a normal message, no key exchange        
                     else:
@@ -135,7 +144,7 @@ class client_handler(base_connection):
     def _receive_loop(self):
         while self.running:
             try:
-                message = self.socket.recv(1024).decode('utf-8')
+                message = self.socket.recv(8192).decode('utf-8')
                 if message == "" or message == "EXIT":
                     break
 
@@ -210,8 +219,21 @@ class server_connect:
             return
     
         try:
-            target_user, content = msg.split('|', 1)
+            parts = msg.split('|')
+            target_user= parts[0]
+            msg_type = parts[1] if len(parts) > 1 else None
             
+            if msg_type in ["DH_INIT", "DH_RESPONSE"]:
+            
+                if target_user in self.clients:
+                    target_conn = self.clients[target_user]
+                    target_conn.send(msg)
+                else:
+                    sender_conn.send(f"System|User {target_user} not online.")
+                return
+            
+            #then normal message routing
+            content = msg.split('|', 1)[1]
             if target_user in self.clients:
                 target_conn = self.clients[target_user]
                 target_conn.send(f"{sender_conn.username}|{content}")
