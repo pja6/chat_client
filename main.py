@@ -3,6 +3,7 @@ from tkinter import scrolledtext, messagebox
 from socket import *
 from threading import *
 from networking import client_connect, server_connect
+import security
 
 
 class chat_gui:
@@ -43,6 +44,13 @@ class chat_gui:
         self.send_button = tk.Button(self.gui_window, text="SEND", command=self.send)
         self.send_button.pack(pady=5)
         
+        #exchange it
+        self.secure_btn = tk.Button(self.gui_window, text="SECURE HANDSHAKE", command = self.start_handshake, fg="green")
+        self.secure_btn.pack(pady=5)
+        
+        
+        
+        
         
     #TODO
         #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
@@ -53,7 +61,8 @@ class chat_gui:
        if not username:
            messagebox.showerror("Error", "Username can't be empty")
            return
-       self.connection = client_connect('localhost', 5001, self.receive_msg)
+       
+       self.connection = client_connect('localhost', 5001, username, self.receive_msg)
        try:
            self.connection.start()
            self.connection.send(username)
@@ -64,7 +73,16 @@ class chat_gui:
         
        except Exception as e:
            messagebox.showerror("Connection Failed", f"Is server running?\n{e}")
-        
+    
+    
+    def start_handshake(self):
+        target = self.target_entry.get().strip()
+        if not target:
+            messagebox.showwarning("Warning", "Enter a target username first!")
+            return
+        if self.connection:
+            self.display(f"System: Initiating Secure handshake with {target}...")
+            self.connection.secure_connect(target)
         
     def send(self):
         target=self.target_entry.get().strip()
@@ -81,10 +99,30 @@ class chat_gui:
             
     def receive_msg(self, msg):
         try:
-            sender, content = msg.split('|', 1)
-            self.display(f"{sender}: {content}")
-        except ValueError:
-            self.display(f"Raw: {msg}")
+            parts = msg.split('|')
+            
+            if len(parts) >= 2:
+                sender = parts[0]
+                
+                #check if key exchange is happening
+                if len(parts) >= 2 and parts[1] in ["DH_INIT", "DH_RESPONSE"]:
+                    self.display(f"System: Security handshake update from {sender}...")
+                    return
+                
+                #TODO if encryption happens
+                
+                #system message
+                if sender == "System":
+                    self.display(f"*** {parts[1]} ***")
+                else:
+                    content = "|".join(parts[1:])
+                    self.display(f"{sender}: {content}")
+                    #self.display(f"{sender}: {'|'.join(parts[1:])}")
+            else:
+               self.display(f"Raw: {msg}")
+        except Exception as e:
+            self.display(f"Error parsing message: {msg}")
+         
                 
     def display(self, msg):
         #need to schedule display

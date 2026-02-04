@@ -101,9 +101,21 @@ class client_connect(base_connection):
       
 
     def close(self):
+        print("Closing connection and clearing session keys...")
         self.running = False
+        
+        #wipe shared secrets from memory
+        if hasattr(self, 'sec_mgr'):
+            self.sec_mgr.shared_secrets.clear()
+        
+        #now shut down socket
         if self.socket:
-            self.socket.close()
+            try:
+                #clear username when logging out
+                self.send("EXIT")
+                self.socket.close()
+            except:
+                pass
 
 # class represents a connection the server accepted
 class client_handler(base_connection):
@@ -121,18 +133,28 @@ class client_handler(base_connection):
     
     # overrides base class  
     def _receive_loop(self):
-         while self.running:
+        while self.running:
             try:
                 message = self.socket.recv(1024).decode('utf-8')
+                if message == "" or message == "EXIT":
+                    break
+
                 if message:
                     # Pass sender
                     self.on_msg_rcvd(message, self)  
+                """"
                 else:
-                    break
-            except Exception as e:
+                break
+                except Exception as e:
                 print(f"Error receiving: {e}")
                 self.running = False
                 break
+                """
+            except:
+                break
+
+        self.running = False
+        self.close()
    
     def close(self):
         if self.socket:
@@ -202,6 +224,7 @@ class server_connect:
         self.running = False
         if self.listen_socket:
             self.listen_socket.close()
-        for conn in self.clients:
+        # was iterating over str before, now actual obj
+        for conn in self.clients.values():
             conn.close()
     
