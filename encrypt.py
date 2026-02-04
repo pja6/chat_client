@@ -54,7 +54,7 @@ def dcipher(c,d,n):
 
     return pow(c,d,n)
 
-def make_key(bit_len):
+def make_rsa_key(bit_len):
     e = 65537
     p= gen_prime(bit_len)
     q= gen_prime(bit_len)
@@ -132,7 +132,7 @@ def gen_sym_key(swap_pub_val, priv_key, pub_p):
 
 def main():
 
-    public,private = make_key(int(sys.argv[1]))
+    public,private = make_rsa_key(int(sys.argv[1]))
 
     print("RSA Keys Created:")
     #public key = (n,e)

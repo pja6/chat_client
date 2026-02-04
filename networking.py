@@ -1,6 +1,7 @@
 from socket import *
 from threading import *
-import crypto
+import encrypt
+import security
 
 class base_connection:
     def __init__(self, on_msg_rcvd):
@@ -38,12 +39,55 @@ class base_connection:
             
 #Actively connects to a server (has host/port, calls connect())   
 class client_connect(base_connection):
-    def __init__(self, host, port, on_msg_rcvd):
+    def __init__(self, host, port, username, on_msg_rcvd):
         super().__init__(on_msg_rcvd)
         self.host = host
         self.port = port
         
+        self.sec_mgr = security.Security_Manager(username)
         
+  
+    def secure_connect(self, target):
+        packet = self.sec_mgr.create_dh_packet(target)
+        self.send(packet)
+        
+    def _receive_loop(self):
+        while self.running:
+            try:
+                data = self.socket.recv(4096).decode('utf-8')
+                if not data:
+                    break
+                
+                parts = data.split("|")
+                if len(parts) >= 3:
+                    sender = parts[0]
+                    msg_type = parts[1]
+                
+                    
+                    if msg_type == "DH_INIT":
+                        response = self.sec_mgr.verify_respond(sender, *parts[3:])
+                        if response: self.send(response)
+                        
+                    elif msg_type == "DH_RESPONSE":
+                        if self.sec_mgr.finalize_secret(sender, *parts[3:]):
+                            print(f"Secure Link with {sender} ready...")
+                    
+                    #just a normal message, no key exchange        
+                    else:
+                        self.on_msg_rcvd(data)
+                
+                #TODO elif msg_type == "SECURE_MSG" for encryption
+                
+                    #system messages e.g. Welcome to IM   
+                else:
+                    self.on_msg_rcvd(data)
+                    
+            except Exception as e:
+                print(f"Receive Error: {e}")
+                break
+                        
+
+            
     def start(self):
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.connect((self.host, self.port))
