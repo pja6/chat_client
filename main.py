@@ -103,8 +103,10 @@ class chat_gui:
                 sender = parts[0]
                 
                 #check if key exchange is happening
-                if len(parts) >= 2 and parts[1] in ["DH_INIT", "DH_RESPONSE"]:
+                if len(parts) >= 2 and parts[1] in ["DH_INIT", "DH_REQUEST", "DH_RESPONSE"]:
                     self.display(f"System: Security handshake update from {sender}...")
+                    if parts[1] == "DH_REQUEST":
+                        self.display(f"System: {sender} requesting secure connection, agree?")
                     return
                 
                 #TODO if encryption happens

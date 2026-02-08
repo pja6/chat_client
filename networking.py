@@ -43,13 +43,27 @@ class client_connect(base_connection):
         super().__init__(on_msg_rcvd)
         self.host = host
         self.port = port
-        
+        self.username=username
+        self.dh_waiting = False
+        # sender:data
+        self.dh_pending={}
+
         self.sec_mgr = security.Security_Manager(username)
         
   
     def secure_connect(self, target):
-        packet = self.sec_mgr.create_dh_packet(target)
-        self.send(packet)
+        if self.dh_waiting and self.dh_pending:
+            # DH_Pub, RSA_n, RSA_e, Sig (indices 3, 4, 5, 6)
+           
+            data = self.dh_pending.pop(self.username)
+            #unpack data
+            response = self.sec_mgr.verify_respond(target, *data)
+            if response: 
+                self.send(response)
+            self.dh_waiting=False
+        else:
+            packet = self.sec_mgr.create_dh_packet(target)
+            self.send(packet)
         
     def _receive_loop(self):
         while self.running:
@@ -68,10 +82,17 @@ class client_connect(base_connection):
                 
                     
                     if msg_type == "DH_INIT":
-                        # DH_Pub, RSA_n, RSA_e, Sig (indices 3, 4, 5, 6)
-                        response = self.sec_mgr.verify_respond(sender, *parts[2:])
-                        if response: 
-                            self.send(response)
+                    
+                        self.dh_pending[sender] = parts[2:]
+                        self.on_msg_rcvd(f"{sender}|DH_REQUEST")
+                        self.dh_waiting=True
+                        
+                    
+
+                        
+                        """"
+                      
+                            """
                         
                     elif msg_type == "DH_RESPONSE":
                         print(f"[CLIENT] Received DH_RESPONSE from {sender}")
@@ -211,7 +232,9 @@ class server_connect:
             if msg in self.clients:
                 sender_conn.send("System|username taken")
                 return
-        
+
+            print(f"[SERVER] Routing message from {sender_conn.username or 'UNKNOWN'}: {msg}")
+
             sender_conn.username = msg
             self.clients[msg] = sender_conn
             print(f"User logged in: {msg}")
