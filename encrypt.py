@@ -1,15 +1,17 @@
 #!/usr/bin/python3
 # Retrieved from: http://en.literateprograms.org/Miller-Rabin_primality_test_(Python)?oldid=17104
 
+from Crypto.Cipher import AES
 import math
 import random, sys, os
 
 #since using standard public numbers, keeping as constants
 # actually 1536-bit MODP Group - had to change it, didnt update name
-MOD3072_P=0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF
+MOD1536_P=0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF
 
-MOD3072_G= 2
+MOD1536_G= 2
 
+#==================================== RSA =======================================
 def miller_rabin_pass(a, s, d, n):
     a_to_power = pow(a, d, n)
     if a_to_power == 1:
@@ -91,7 +93,7 @@ def modinv(a, m):
     else:
         return x % m
 
-
+#======================================== Diffie-Helman Exc. ============================
 """" at this point just orchestration, each client doing things independently, will just use functions
 def diffie_hellman():
     
@@ -131,6 +133,30 @@ def gen_sym_key(swap_pub_val, priv_key, pub_p):
     
     return shared_secret
 
+
+#====================================== AES STREAM CIPHER ========================
+
+def encrypt_message(shared_secret, plain_text):
+    key = shared_secret
+    cipher = AES.new(key, AES.MODE_CTR)
+    
+    nonce = cipher.nonce
+    cipher_text, tag = cipher.encrypt_and_digest(plain_text)
+    
+    return cipher_text, tag, nonce
+
+
+def decrypt_message(shared_secret, cipher_text, tag, nonce):
+    key = shared_secret
+    cipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
+    plain_text = cipher.decrypt(cipher_text)
+    
+    try: 
+        cipher.verify(tag)
+        print(f"The message is authentic: {plain_text}")
+    except ValueError:
+        print("Key incorrect or message corrupted")
+    
 
 #This isn't used, was just for testing the RSA code
 def main():

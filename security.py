@@ -12,8 +12,8 @@ class Security_Manager:
     
     # gen keys and returns formatted INIT string
     def create_dh_packet(self, target_user):
-        self.dh_private = encrypt.gen_priv_key(encrypt.MOD3072_P)
-        self.dh_public = encrypt.gen_pub_val(encrypt.MOD3072_P, encrypt.MOD3072_G, self.dh_private)
+        self.dh_private = encrypt.gen_priv_key(encrypt.MOD1536_P)
+        self.dh_public = encrypt.gen_pub_val(encrypt.MOD1536_P, encrypt.MOD1536_G, self.dh_private)
         
    
         #prep for toy rsa signature
@@ -35,11 +35,11 @@ class Security_Manager:
             #added a lot of debugging - nice that it shows up on terminal now though
             if str(decrypted_sig) == s_dh_pub:
                 print(f"[SEC_MGR] Signature verified! Computing shared secret...")
-                self.dh_private = encrypt.gen_priv_key(encrypt.MOD3072_P)
-                self.dh_public = encrypt.gen_pub_val(encrypt.MOD3072_P, encrypt.MOD3072_G, self.dh_private)
+                self.dh_private = encrypt.gen_priv_key(encrypt.MOD1536_P)
+                self.dh_public = encrypt.gen_pub_val(encrypt.MOD1536_P, encrypt.MOD1536_G, self.dh_private)
                 
                 # Compute secret
-                self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD3072_P)
+                self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD1536_P)
                 print(f"[SEC_MGR] Shared secret computed: {str(self.shared_secrets[sender])[:50]}...")
                 
                 # Respond
@@ -66,7 +66,15 @@ class Security_Manager:
         
         if decrypted_sig == int(s_dh_pub):
             
-            self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD3072_P)
+            self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD1536_P)
             
             return True
         return False
+    
+    
+def main():
+    print("AES block size:", AES.block_size)
+
+
+if __name__=="__main__":
+    main()
