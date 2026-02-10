@@ -7,6 +7,7 @@ class Security_Manager:
         self.rsa_pub, self.rsa_priv = encrypt.make_rsa_key(2048)
         self.dh_private = None
         self.dh_public = None
+        # username|secret
         self.shared_secrets = {}
         
     

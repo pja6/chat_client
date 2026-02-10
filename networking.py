@@ -53,15 +53,17 @@ class client_connect(base_connection):
         
   
     def secure_connect(self, target):
-        if self.dh_waiting and self.dh_pending:
+        if self.dh_waiting and target in self.dh_pending:
             # DH_Pub, RSA_n, RSA_e, Sig (indices 3, 4, 5, 6)
            
-            data = self.dh_pending.pop(self.username)
+            packet_data = self.dh_pending.pop(target)
             #unpack data
-            response = self.sec_mgr.verify_respond(target, *data)
+            response = self.sec_mgr.verify_respond(packet_data)
+            #pending init to respond to
             if response: 
                 self.send(response)
             self.dh_waiting=False
+            #starting exchange
         else:
             packet = self.sec_mgr.create_dh_packet(target)
             self.send(packet)
@@ -69,58 +71,70 @@ class client_connect(base_connection):
     def _receive_loop(self):
         while self.running:
             try:
-                data = self.socket.recv(4096).decode('utf-8')
+                data = self.socket.recv(8192).decode('utf-8')
                 if not data:
                     break
                 
-                parts = data.split("|")
-                msg_type = None
                 
-                # Minimum parts: Sender | Target | Type | DH_Pub | n | e | Sig = 7 parts
-                if len(parts) >= 6:
-                    sender = parts[0]
-                    msg_type = parts[1]
+                packet = json.loads(data)
                 
+                msg_type = packet["type"]
+                sender = packet.get("sender", "System")
+                
+                if msg_type == "DH_INIT":
+                    print(f"[CLIENT] Recieved DH_INIT from {sender}")
+                    self.dh_pending[sender] = packet
                     
-                    if msg_type == "DH_INIT":
-                    
-                        self.dh_pending[sender] = parts[2:]
-                        self.on_msg_rcvd(f"{sender}|DH_REQUEST")
-                        self.dh_waiting=True
+                    self.on_msg_rcvd({
+                        "type": "DH_REQUEST",
+                        "sender": sender
+                    })
+                    self.dh_waiting=True
                         
-                    
-
                         
-                        """"
-                      
-                            """
-                        
-                    elif msg_type == "DH_RESPONSE":
-                        print(f"[CLIENT] Received DH_RESPONSE from {sender}")
-                        if self.sec_mgr.finalize_secret(sender, *parts[2:]):
-                            print(f"[CLIENT] finalize_secret returned True!")
-                            self.on_msg_rcvd(f"Secure Link with {sender} ready...")
-                            self.secure=True
-                        else:
-                            print(f"[CLIENT] finalize_secret returned False!")
-                    
-                    elif msg_type == "SECURE_MSG":
-                        if self.secure:
-                            
-
-                    
-                    
-                    #just a normal message, no key exchange        
+                elif msg_type == "DH_RESPONSE":
+                    print(f"[CLIENT] Received DH_RESPONSE from {sender}")
+                    if self.sec_mgr.finalize_secret(packet):
+                        print(f"[CLIENT] finalize_secret returned True!")
+                        self.on_msg_rcvd({
+                            "type": "SECURE_LINK_ESTABLISHED",
+                            "sender": sender
+                        })
+                        self.secure=True
                     else:
-                        self.on_msg_rcvd(data)
+                        print(f"[CLIENT] finalize_secret returned False!")
+                
+                elif msg_type == "SECURE_MSG":
+                    if self.secure:
+                        
+                        return
+                
+                #just a normal message, no key exchange        
+
+                elif msg_type == "MESSAGE":
+                    self.on_msg_rcvd({
+                        "type": "MESSAGE",
+                        "sender": sender,
+                        "content": packet["content"],
+                        "encrypted": False
+                    })
+                
+                elif msg_type= "SYSTEM":
+                    self.on_msg_rcvd({
+                        "type": "SYSTEM",
+                        "content": packet["content"]
+                    })
                 
                 
-                    #system messages e.g. Welcome to IM   
+                #system messages e.g. Welcome to IM   
                 else:
-                    self.on_msg_rcvd(data)
-                    
+                    print(f"[CLIENT] Unknown message type: {msg_type}")
+                
+            except json.JSONDecodeError as e:
+                print(f"[CLIENT] Failed to parse JSON: {e}")
+                print(f"[CLIENT] Raw data: {data}")
             except Exception as e:
-                print(f"Receive Error: {e}")
+                print(f"[CLIENT] Receive Error: {e}")
                 break
                         
 
@@ -237,7 +251,11 @@ class server_connect:
     def route_message(self,msg, sender_conn):
         if sender_conn.username is None:
             if msg in self.clients:
-                sender_conn.send("System|username taken")
+                error_msg = {
+                    "type": "SYSTEM",
+                    "content": "Username taken"
+                }
+                sender_conn.send(json.dumps(error_msg))
                 return
 
             print(f"[SERVER] Routing message from {sender_conn.username or 'UNKNOWN'}: {msg}")
@@ -245,32 +263,44 @@ class server_connect:
             sender_conn.username = msg
             self.clients[msg] = sender_conn
             print(f"User logged in: {msg}")
-            sender_conn.send("System|Welcome to IM")
+            
+            welcome_msg = {
+                "type": "SYSTEM",
+                "content": "Welcome to Messenger"
+            }
+            sender_conn.send(json.dumps(welcome_msg))
             return
     
         try:
-            parts = msg.split('|')
-            target_user= parts[0]
-            msg_type = parts[1] if len(parts) > 1 else None
+            packet = json.loads(msg)
+            target_user = packet.get("target")
+            msg_type = packet.get("type")
             
-            if msg_type in ["DH_INIT", "DH_RESPONSE"]:
-            
-                if target_user in self.clients:
-                    target_conn = self.clients[target_user]
-                    target_conn.send(msg)
-                else:
-                    sender_conn.send(f"System|User {target_user} not online.")
+            if not target_user:
+                error_msg = {
+                    "type": "SYSTEM",
+                    "content": "Message missing target"
+                }
+                sender_conn.send(json.dumps(error_msg))
                 return
             
-            #then normal message routing
-            content = msg.split('|', 1)[1]
+            #route ALL message types to user - json now parses type
             if target_user in self.clients:
+                
                 target_conn = self.clients[target_user]
-                target_conn.send(f"{sender_conn.username}|{content}")
+                target_conn.send(msg)
             else:
-                sender_conn.send(f"System|User {target_user} not found.")
-        except:
-            sender_conn.send("System|Invalid format. Use: Recipient|Message")
+                sender_conn.send(json.dumps({
+                    "type": "SYSTEM",
+                    "content": f"USER {target_user} not online"
+                }))
+                return
+
+        except json.JSONDecodeError:
+            sender_conn.send(json.dumps({
+                "type": "SYSTEM",
+                "content": "Invalid message format (expected JSON)"
+            }))
         
     def close(self):
         self.running = False
