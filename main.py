@@ -3,6 +3,7 @@ from tkinter import scrolledtext, messagebox
 from socket import *
 from threading import *
 from networking import client_connect, server_connect
+import json
 
 class chat_gui:
     def __init__(self, connection=None):
@@ -90,38 +91,51 @@ class chat_gui:
             return
         if target and msg:
             self.display(f"To {target}: {msg}")
-            formatted_msg = f"{target}|{msg}"
-            self.connection.send(formatted_msg)
+        #TODO encrypted message
+        message_packet = {
+            "sender": self.connection.username,
+            "target": target,
+            "type": "MESSAGE",
+            "content": msg
+        }     
+        self.connection.send(json.dumps(message_packet))
+        #stays out of the if/else block
+        self.text_field.delete(0, tk.END)      
             
-            self.text_field.delete(0, tk.END)
-            
-    def receive_msg(self, msg):
+    def receive_msg(self, msg_data):
         try:
-            parts = msg.split('|')
             
-            if len(parts) >= 2:
-                sender = parts[0]
+            if isinstance(msg_data, dict):
+                msg_type = msg_data.get("type")
+                sender = msg_data.get("sender", "System")
                 
-                #check if key exchange is happening
-                if len(parts) >= 2 and parts[1] in ["DH_INIT", "DH_REQUEST", "DH_RESPONSE"]:
-                    self.display(f"System: Security handshake update from {sender}...")
-                    if parts[1] == "DH_REQUEST":
-                        self.display(f"System: {sender} requesting secure connection, agree?")
-                    return
+                self.display(f"System: Security handshake update from {sender}...")
+
+                if msg_type == "DH_REQUEST":
+                    self.display(f"System: {sender} requesting secure connection, agree?")
                 
+                elif msg_type == "SECURE_LINK_ESTABLISHED":
+                    self.display(f" System: secure link with {sender} established")  
+                    self.secure_btn.config(fg="green", text = "SECURE")              
                 #TODO if encryption happens
                 
+                elif msg_type == "MESSAGE":
+                    content = msg_data.get("content", "")
+                    encrypted = msg_data.get("encrypted", False)
+                    prefix = "SEC" if encrypted else ""
+                    self.display(f"{prefix}{sender}: {content}")
+                
                 #system message
-                if sender == "System":
-                    self.display(f"*** {parts[1]} ***")
+                elif sender == "SYSTEM":
+                    content = msg_data.get("content", "")
+                    self.display(f"*** {content} ***")
+            
                 else:
-                    content = "|".join(parts[1:])
-                    self.display(f"{sender}: {content}")
-                    #self.display(f"{sender}: {'|'.join(parts[1:])}")
-            else:
-               self.display(f"Raw: {msg}")
+                    self.display(f"Unknown message type: {msg_type}")
         except Exception as e:
-            self.display(f"Error parsing message: {msg}")
+            self.display(f"Error parsing message: {e}")
+            import traceback
+            traceback.print_exc()
          
                 
     def display(self, msg):

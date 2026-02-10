@@ -119,7 +119,7 @@ class client_connect(base_connection):
                         "encrypted": False
                     })
                 
-                elif msg_type= "SYSTEM":
+                elif msg_type == "SYSTEM":
                     self.on_msg_rcvd({
                         "type": "SYSTEM",
                         "content": packet["content"]
