@@ -44,13 +44,13 @@ class Security_Manager:
             
             
             print(f"[SEC_MGR] verify_respond called for sender: {sender}")
-            print(f"[SEC_MGR] s_dh_pub length: {len(s_dh_pub)}")
-            print(f"[SEC_MGR] s_sig: {s_sig[:50]}...")
+            #print(f"[SEC_MGR] s_dh_pub length: {len(s_dh_pub)}")
+            #print(f"[SEC_MGR] s_sig: {s_sig[:50]}...")
         
             decrypted_sig = encrypt.dcipher(int(s_sig), int(s_rsa_e), int(s_rsa_n))
             
             #added a lot of debugging - nice that it shows up on terminal now though
-            if str(decrypted_sig) == s_dh_pub:
+            if decrypted_sig == s_dh_pub:
                 print(f"[SEC_MGR] Signature verified! Computing shared secret...")
                 
                 #generating dh key pair

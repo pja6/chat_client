@@ -63,9 +63,7 @@ class chat_gui:
        
        self.connection = client_connect('localhost', 5001, username, self.receive_msg)
        try:
-           self.connection.start()
-           self.connection.send(username)
-           
+           self.connection.start()           
            self.username_entry.config(state='disabled')
            self.connect_button.config(state='disabled')
            self.display(f"System: Connected as {username}")
@@ -109,9 +107,10 @@ class chat_gui:
                 msg_type = msg_data.get("type")
                 sender = msg_data.get("sender", "System")
                 
-                self.display(f"System: Security handshake update from {sender}...")
 
                 if msg_type == "DH_REQUEST":
+                    self.display(f"System: Security handshake update from {sender}...")
+
                     self.display(f"System: {sender} requesting secure connection, agree?")
                 
                 elif msg_type == "SECURE_LINK_ESTABLISHED":
@@ -126,7 +125,7 @@ class chat_gui:
                     self.display(f"{prefix}{sender}: {content}")
                 
                 #system message
-                elif sender == "SYSTEM":
+                elif msg_type == "SYSTEM":
                     content = msg_data.get("content", "")
                     self.display(f"*** {content} ***")
             

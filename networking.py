@@ -144,6 +144,11 @@ class client_connect(base_connection):
         self.socket.connect((self.host, self.port))
         self.running = True
         
+        login_packet = {
+            "type": "LOGIN",
+            "username": self.username
+        }
+        self.send(json.dumps(login_packet))
         #receive in background thread
         
         receive_thread = Thread(target=self._receive_loop)
@@ -249,10 +254,34 @@ class server_connect:
 
 
     def route_message(self,msg, sender_conn):
+        try:
+            packet = json.loads(msg)
+            sender_name = getattr(sender_conn, "username", "UNKNOWN")
+            print(f"[SERVER] Routing message from {sender_name}: {json.dumps(packet)}")
+        except json.JSONDecodeError:
+            sender_conn.send(json.dumps({
+                "type": "SYSTEM",
+                "content": "Invalid message format (expected JSON)"
+            }))
+            return
+        
         if sender_conn.username is None:
-            if msg in self.clients:
-                error_msg = {
+            if packet.get("type") != "LOGIN":
+                sender_conn.send(json.dumps({
                     "type": "SYSTEM",
+                    "content": "Please LOGIN first"
+                }))
+                return
+            username = packet.get("username")
+            if not username:
+                sender_conn(json.dumps({
+                    "type": "SYSTEM",
+                    "content": "LOGIN packet missing username"
+                }))
+                return
+            if username in self.clients:
+                error_msg = {
+                "type": "SYSTEM",
                     "content": "Username taken"
                 }
                 sender_conn.send(json.dumps(error_msg))
@@ -260,9 +289,9 @@ class server_connect:
 
             print(f"[SERVER] Routing message from {sender_conn.username or 'UNKNOWN'}: {msg}")
 
-            sender_conn.username = msg
-            self.clients[msg] = sender_conn
-            print(f"User logged in: {msg}")
+            sender_conn.username = username
+            self.clients[username] = sender_conn
+            print(f"User logged in: {username}")
             
             welcome_msg = {
                 "type": "SYSTEM",
