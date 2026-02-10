@@ -9,7 +9,8 @@ class Security_Manager:
         self.dh_public = None
         # username|secret
         self.shared_secrets = {}
-        
+
+# ============================   DH Exchange ====================================== 
     
     # gen keys and returns formatted INIT string
     def create_dh_packet(self, target_user):
@@ -24,7 +25,7 @@ class Security_Manager:
         packet = {
             "sender": self.username,
             "target": target_user,
-            "type": "DH_INIT",
+            "msg_type": "DH_INIT",
             "dh_public": self.dh_public,
             "rsa_n": self.rsa_pub[0],
             "rsa_e": self.rsa_pub[1],
@@ -67,7 +68,7 @@ class Security_Manager:
                 response = {
                     "sender": self.username,
                     "target": sender,
-                    "type": "DH_RESPONSE",
+                    "msg_type": "DH_RESPONSE",
                     "dh_public": self.dh_public,
                     "rsa_n": self.rsa_pub[0],
                     "rsa_e": self.rsa_pub[1],
@@ -111,7 +112,59 @@ class Security_Manager:
             print(f"[SEC_MGR] Exception in finalize_secret: {e}")
             return False
         
+# ================================================= Encrypt Message ===========================
+
+
+    def encrypt_message(self, packet_data):
+        try:
+           sender = packet_data["sender"]
+           target = packet_data["target"]
+           msg_type  = packet_data["msg_type"]
+           content = packet_data["content"]
+
+           cipher_text, tag, nonce =encrypt.encrypt_message(self.shared_secrets[sender], content)
+
+           encrypted_packet={
+               "sender": sender,
+               "target": target,
+               "msg_type": "SECURE_MESSAGE",
+               "content": cipher_text,
+               "c_tag": tag,
+               "c_nonce": nonce,
+               "encrypted": True
+           }
+
+        except Exception as e:
+            print(f"[SEC_MGR] Exception in encrypt_message: {e}")
+            return False
         
+        return json.dumps(encrypted_packet)
+
+    def decrypt_message(self, encrypt_data):
+
+        try:
+            sender = encrypt_data["sender"]
+            target = encrypt_data["target"]
+            msg_type = encrypt_data["msg_type"]
+            content = encrypt_data["content"]
+            c_tag = encrypt_data["c_data"]
+            c_nonce = encrypt_data["c_nonce"]
+            
+            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content, c_tag, c_nonce)
+
+            decrypted_packet={
+                "sender": sender,
+                "target": target,
+                "msg_type": "MESSAGE",
+                "content": plain_txt,
+                "encrypted": False
+            }
+        except Exception as e:
+            print(f"[SEC_MGR] Exception in decrypt_message: {e}")
+            return False
+        
+        return json.dumps(decrypted_packet)
+    
 def main():
     print("AES block size:", AES.block_size)
 

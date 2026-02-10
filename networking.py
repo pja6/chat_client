@@ -78,7 +78,7 @@ class client_connect(base_connection):
                 
                 packet = json.loads(data)
                 
-                msg_type = packet["type"]
+                msg_type = packet["msg_type"]
                 sender = packet.get("sender", "System")
                 
                 if msg_type == "DH_INIT":
@@ -86,7 +86,7 @@ class client_connect(base_connection):
                     self.dh_pending[sender] = packet
                     
                     self.on_msg_rcvd({
-                        "type": "DH_REQUEST",
+                        "msg_type": "DH_REQUEST",
                         "sender": sender
                     })
                     self.dh_waiting=True
@@ -97,7 +97,7 @@ class client_connect(base_connection):
                     if self.sec_mgr.finalize_secret(packet):
                         print(f"[CLIENT] finalize_secret returned True!")
                         self.on_msg_rcvd({
-                            "type": "SECURE_LINK_ESTABLISHED",
+                            "msg_type": "SECURE_LINK_ESTABLISHED",
                             "sender": sender
                         })
                         self.secure=True
@@ -113,7 +113,7 @@ class client_connect(base_connection):
 
                 elif msg_type == "MESSAGE":
                     self.on_msg_rcvd({
-                        "type": "MESSAGE",
+                        "msg_type": "MESSAGE",
                         "sender": sender,
                         "content": packet["content"],
                         "encrypted": False
@@ -121,7 +121,7 @@ class client_connect(base_connection):
                 
                 elif msg_type == "SYSTEM":
                     self.on_msg_rcvd({
-                        "type": "SYSTEM",
+                        "msg_type": "SYSTEM",
                         "content": packet["content"]
                     })
                 
@@ -145,7 +145,7 @@ class client_connect(base_connection):
         self.running = True
         
         login_packet = {
-            "type": "LOGIN",
+            "msg_type": "LOGIN",
             "username": self.username
         }
         self.send(json.dumps(login_packet))
@@ -260,28 +260,28 @@ class server_connect:
             print(f"[SERVER] Routing message from {sender_name}: {json.dumps(packet)}")
         except json.JSONDecodeError:
             sender_conn.send(json.dumps({
-                "type": "SYSTEM",
+                "msg_type": "SYSTEM",
                 "content": "Invalid message format (expected JSON)"
             }))
             return
         
         if sender_conn.username is None:
-            if packet.get("type") != "LOGIN":
+            if packet.get("msg_type") != "LOGIN":
                 sender_conn.send(json.dumps({
-                    "type": "SYSTEM",
+                    "msg_type": "SYSTEM",
                     "content": "Please LOGIN first"
                 }))
                 return
             username = packet.get("username")
             if not username:
                 sender_conn(json.dumps({
-                    "type": "SYSTEM",
+                    "msg_type": "SYSTEM",
                     "content": "LOGIN packet missing username"
                 }))
                 return
             if username in self.clients:
                 error_msg = {
-                "type": "SYSTEM",
+                "msg_type": "SYSTEM",
                     "content": "Username taken"
                 }
                 sender_conn.send(json.dumps(error_msg))
@@ -294,7 +294,7 @@ class server_connect:
             print(f"User logged in: {username}")
             
             welcome_msg = {
-                "type": "SYSTEM",
+                "msg_type": "SYSTEM",
                 "content": "Welcome to Messenger"
             }
             sender_conn.send(json.dumps(welcome_msg))
@@ -303,11 +303,11 @@ class server_connect:
         try:
             packet = json.loads(msg)
             target_user = packet.get("target")
-            msg_type = packet.get("type")
+            msg_type = packet.get("msg_type")
             
             if not target_user:
                 error_msg = {
-                    "type": "SYSTEM",
+                    "msg_type": "SYSTEM",
                     "content": "Message missing target"
                 }
                 sender_conn.send(json.dumps(error_msg))
@@ -320,14 +320,14 @@ class server_connect:
                 target_conn.send(msg)
             else:
                 sender_conn.send(json.dumps({
-                    "type": "SYSTEM",
+                    "msg_type": "SYSTEM",
                     "content": f"USER {target_user} not online"
                 }))
                 return
 
         except json.JSONDecodeError:
             sender_conn.send(json.dumps({
-                "type": "SYSTEM",
+                "msg_type": "SYSTEM",
                 "content": "Invalid message format (expected JSON)"
             }))
         

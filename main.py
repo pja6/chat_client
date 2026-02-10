@@ -54,7 +54,9 @@ class chat_gui:
     #TODO
         #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
         #self.disconnect_button.pack(pady=5)
-        
+
+# =====================================  GUI FX ================================================
+#   
     def connect_to_server(self):
        username = self.username_entry.get().strip()
        if not username:
@@ -89,13 +91,15 @@ class chat_gui:
             return
         if target and msg:
             self.display(f"To {target}: {msg}")
-        #TODO encrypted message
         message_packet = {
             "sender": self.connection.username,
             "target": target,
-            "type": "MESSAGE",
-            "content": msg
+            "msg_type": "MESSAGE",
+            "content": msg,
+            "encrypted": False
         }     
+        #TODO encrypted message - if secure == true, send msg_pckt through encrypt function else send normally
+
         self.connection.send(json.dumps(message_packet))
         #stays out of the if/else block
         self.text_field.delete(0, tk.END)      
@@ -104,7 +108,7 @@ class chat_gui:
         try:
             
             if isinstance(msg_data, dict):
-                msg_type = msg_data.get("type")
+                msg_type = msg_data.get("msg_type")
                 sender = msg_data.get("sender", "System")
                 
 

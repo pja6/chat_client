@@ -156,6 +156,8 @@ def decrypt_message(shared_secret, cipher_text, tag, nonce):
         print(f"The message is authentic: {plain_text}")
     except ValueError:
         print("Key incorrect or message corrupted")
+
+    return plain_text
     
 
 #This isn't used, was just for testing the RSA code
