@@ -1,7 +1,7 @@
 from socket import *
 from threading import *
-import encrypt
 import security
+import json
 
 class base_connection:
     def __init__(self, on_msg_rcvd):
@@ -45,6 +45,7 @@ class client_connect(base_connection):
         self.port = port
         self.username=username
         self.dh_waiting = False
+        self.secure = False
         # sender:data
         self.dh_pending={}
 
@@ -99,14 +100,20 @@ class client_connect(base_connection):
                         if self.sec_mgr.finalize_secret(sender, *parts[2:]):
                             print(f"[CLIENT] finalize_secret returned True!")
                             self.on_msg_rcvd(f"Secure Link with {sender} ready...")
+                            self.secure=True
                         else:
                             print(f"[CLIENT] finalize_secret returned False!")
+                    
+                    elif msg_type == "SECURE_MSG":
+                        if self.secure:
+                            
+
+                    
                     
                     #just a normal message, no key exchange        
                     else:
                         self.on_msg_rcvd(data)
                 
-                #TODO elif msg_type == "SECURE_MSG" for encryption
                 
                     #system messages e.g. Welcome to IM   
                 else:
