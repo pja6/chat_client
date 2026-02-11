@@ -90,12 +90,19 @@ class client_connect(base_connection):
                         "sender": sender
                     })
                     self.dh_waiting=True
-                        
+                #need some confirmation to send back that it's established        
                         
                 elif msg_type == "DH_RESPONSE":
                     print(f"[CLIENT] Received DH_RESPONSE from {sender}")
                     if self.sec_mgr.finalize_secret(packet):
                         print(f"[CLIENT] finalize_secret returned True!")
+                        confirmation_packet={
+                            "msg_type": "DH_CONFIRM",
+                            "sender": self.username,
+                            "target": sender 
+                        }
+                        self.send(json.dumps(confirmation_packet))
+
                         self.on_msg_rcvd({
                             "msg_type": "SECURE_LINK_ESTABLISHED",
                             "sender": sender
@@ -103,6 +110,13 @@ class client_connect(base_connection):
                         self.secure=True
                     else:
                         print(f"[CLIENT] finalize_secret returned False!")
+                
+                elif msg_type == "DH_CONFIRM":
+                    self.on_msg_rcvd({
+                            "msg_type": "SECURE_LINK_ESTABLISHED",
+                            "sender": sender
+                        })
+                    self.secure=True
                 
                 elif msg_type == "SECURE_MSG":
                     if self.secure:
