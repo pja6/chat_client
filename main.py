@@ -89,18 +89,10 @@ class chat_gui:
         if not self.connection:
             messagebox.showerror("Error", "Not connected")
             return
-        if target and msg:
-            self.display(f"To {target}: {msg}")
-        message_packet = {
-            "sender": self.connection.username,
-            "target": target,
-            "msg_type": "MESSAGE",
-            "content": msg,
-            "encrypted": False
-        }     
-        #TODO encrypted message - if secure == true, send msg_pckt through encrypt function else send normally
-
-        self.connection.send(json.dumps(message_packet))
+        if not target or not msg:
+            return
+        self.display(f"To {target}: {msg}")
+        self.connection.send_message(target, msg)
         #stays out of the if/else block
         self.text_field.delete(0, tk.END)      
             

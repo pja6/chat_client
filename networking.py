@@ -67,7 +67,35 @@ class client_connect(base_connection):
         else:
             packet = self.sec_mgr.create_dh_packet(target)
             self.send(packet)
-        
+    
+    #helper method, separate intent v. transport and catch exceptions 
+    def _send_raw(self, packet):
+        try:
+            self.socket.send(json.dumps(packet).encode('utf-8'))
+        except Exception as e:
+            print(f"[SEND ERROR] Failed to send packet to {packet.get('target')}: {e}")
+    
+    def send_message(self, target, content):
+        if content:
+            try:
+                
+                message_packet = {
+                    "sender": self.username,
+                    "target": target,
+                    "msg_type": "MESSAGE",
+                    "content": content,
+                } 
+                if self.secure:
+                    print(f"[CLIENT] Encrypting message for transmission...")
+                    message_packet = self.sec_mgr.encrypt_message(message_packet)
+                 
+                    
+                #encrypted message - if secure == true, send msg_pckt through encrypt function else send normally
+                self._send_raw(message_packet)
+            except Exception as e:
+                print(f"No message: {e}")
+                
+                
     def _receive_loop(self):
         while self.running:
             try:
@@ -80,6 +108,7 @@ class client_connect(base_connection):
                 
                 msg_type = packet["msg_type"]
                 sender = packet.get("sender", "System")
+                encrypted= packet.get("encrypted", False)
                 
                 if msg_type == "DH_INIT":
                     print(f"[CLIENT] Recieved DH_INIT from {sender}")
@@ -90,7 +119,6 @@ class client_connect(base_connection):
                         "sender": sender
                     })
                     self.dh_waiting=True
-                #need some confirmation to send back that it's established        
                         
                 elif msg_type == "DH_RESPONSE":
                     print(f"[CLIENT] Received DH_RESPONSE from {sender}")
@@ -111,6 +139,8 @@ class client_connect(base_connection):
                     else:
                         print(f"[CLIENT] finalize_secret returned False!")
                 
+                #need some confirmation to send back that it's established        
+
                 elif msg_type == "DH_CONFIRM":
                     self.on_msg_rcvd({
                             "msg_type": "SECURE_LINK_ESTABLISHED",
@@ -118,11 +148,17 @@ class client_connect(base_connection):
                         })
                     self.secure=True
                 
-                elif msg_type == "SECURE_MSG":
-                    if self.secure:
-                        
-                        return
+        
                 
+                elif msg_type =="SECURE_MESSAGE":
+                    if self.secure and encrypted:
+                        decrypted = self.sec_mgr.decrypt_message(packet)
+                        if decrypted:
+                            self.on_msg_rcvd(decrypted)
+                        print(f"[CLIENT] Message decrypted successfully")
+                    else:
+                        print(f"[CLIENT] Link not secure, message not decrypted")
+
                 #just a normal message, no key exchange        
 
                 elif msg_type == "MESSAGE":

@@ -121,8 +121,12 @@ class Security_Manager:
            target = packet_data["target"]
            msg_type  = packet_data["msg_type"]
            content = packet_data["content"]
+           
+           if sender not in self.shared_secrets:
+                print(f"[SEC_MGR] No shared secret for {sender}")
+                return False
 
-           cipher_text, tag, nonce =encrypt.encrypt_message(self.shared_secrets[sender], content)
+           cipher_text, tag, nonce =encrypt.encrypt_message(self.shared_secrets[sender][1], content)
 
            encrypted_packet={
                "sender": sender,
@@ -138,7 +142,7 @@ class Security_Manager:
             print(f"[SEC_MGR] Exception in encrypt_message: {e}")
             return False
         
-        return json.dumps(encrypted_packet)
+        return encrypted_packet
 
     def decrypt_message(self, encrypt_data):
 
@@ -150,7 +154,7 @@ class Security_Manager:
             c_tag = encrypt_data["c_data"]
             c_nonce = encrypt_data["c_nonce"]
             
-            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content, c_tag, c_nonce)
+            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender][1], content, c_tag, c_nonce)
 
             decrypted_packet={
                 "sender": sender,
