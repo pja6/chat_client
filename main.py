@@ -79,6 +79,7 @@ class chat_gui:
             target = self.target_entry.get().strip()
             self.display(f"System: Secure Handshake with {target} terminated")
             print("[SYSTEM] Encrypted conversation terminated")
+            self.receive_msg("SECURE_LINK_TERMINATED")
         else:
             self.start_handshake()
             
@@ -112,8 +113,10 @@ class chat_gui:
                 msg_type = msg_data.get("msg_type")
                 sender = msg_data.get("sender", "System")
                 
-
-                if msg_type == "DH_REQUEST":
+                if msg_type == "DH_RESPONSE":
+                    print("[SYSTEM] New DH Exchange beginning")
+                    
+                elif msg_type == "DH_REQUEST":
                     self.display(f"System: Security handshake update from {sender}...")
 
                     self.display(f"System: {sender} requesting secure connection, agree?")

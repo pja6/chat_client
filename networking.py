@@ -48,13 +48,16 @@ class client_connect(base_connection):
         self.secure = False
         # sender:data
         self.dh_pending={}
-
+        #target/username:true/false
+        self.ratchet_in_progress={}
         self.sec_mgr = security.Security_Manager(username)
         
   
     def secure_connect(self, target):
-        if self.dh_waiting and target in self.dh_pending:
-            # DH_Pub, RSA_n, RSA_e, Sig (indices 3, 4, 5, 6)
+        if self.ratchet_in_progress.get(target, False):
+            packet = self.sec_mgr.create_dh_packet(target)
+            self.send(packet)
+        elif self.dh_waiting and target in self.dh_pending:
            
             packet_data = self.dh_pending.pop(target)
             #unpack data
@@ -92,6 +95,13 @@ class client_connect(base_connection):
                     
                 #encrypted message - if secure == true, send msg_pckt through encrypt function else send normally
                 self._send_raw(message_packet)
+                
+                #start ratchet
+                if self.secure and not self.ratchet_in_progress.get(target, False):
+                    print(f"[CLIENT] Initiating new ratchet with {target} ")
+                    self.ratchet_in_progress[target] = True
+                    self.secure_connect(target)
+                    
             except Exception as e:
                 print(f"No message: {e}")
                 
@@ -113,12 +123,17 @@ class client_connect(base_connection):
                 if msg_type == "DH_INIT":
                     print(f"[CLIENT] Recieved DH_INIT from {sender}")
                     self.dh_pending[sender] = packet
-                    
-                    self.on_msg_rcvd({
-                        "msg_type": "DH_REQUEST",
-                        "sender": sender
-                    })
-                    self.dh_waiting=True
+                    if self.ratchet_in_progress.get(sender, False):
+                        self.on_msg_rcvd({
+                            "msg_type": "DH_RESPONSE",
+                            "sender": sender
+                        })
+                    else:
+                        self.on_msg_rcvd({
+                            "msg_type": "DH_REQUEST",
+                            "sender": sender
+                        })
+                        self.dh_waiting=True
                         
                 elif msg_type == "DH_RESPONSE":
                     print(f"[CLIENT] Received DH_RESPONSE from {sender}")
@@ -136,6 +151,8 @@ class client_connect(base_connection):
                             "sender": sender
                         })
                         self.secure=True
+                        #ratchet complete
+                        self.ratchet_in_progress[sender]=False
                     else:
                         print(f"[CLIENT] finalize_secret returned False!")
                 
@@ -147,7 +164,7 @@ class client_connect(base_connection):
                             "sender": sender
                         })
                     self.secure=True
-                
+                    
         
                 
                 elif msg_type =="SECURE_MESSAGE":
@@ -156,6 +173,8 @@ class client_connect(base_connection):
                         if decrypted:
                             self.on_msg_rcvd(decrypted)
                         print(f"[CLIENT] Message decrypted successfully")
+                        self.secure_connect(sender)
+                        print(f"[CLIENT] Initiating next DH exchange")
                     else:
                         print(f"[CLIENT] Link not secure, message not decrypted")
 
