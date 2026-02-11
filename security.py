@@ -61,6 +61,8 @@ class Security_Manager:
                 
                 # Compute secret
                 self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD1536_P)
+                print(f"[SEC_MGR] Bob's shared secret with {sender}: {str(self.shared_secrets[sender])[:50]}...")
+
                 print(f"[SEC_MGR] Shared secret computed: {str(self.shared_secrets[sender])[:50]}...")
                 
                 # sign 
@@ -105,6 +107,8 @@ class Security_Manager:
             if decrypted_sig == int(s_dh_pub):
                 
                 self.shared_secrets[sender] = encrypt.gen_sym_key(int(s_dh_pub), self.dh_private, encrypt.MOD1536_P)
+                print(f"[SEC_MGR] Alice's shared secret with {sender}: {str(self.shared_secrets[sender])[:50]}...")
+
                 print(f"[SEC_MGR] Shared secret established with {sender}")
                 return True
             
@@ -126,8 +130,10 @@ class Security_Manager:
            if target not in self.shared_secrets:
                 print(f"[SEC_MGR] No shared secret for {target}")
                 return False
+            
+           print(f"[DEBUG] Using shared secret (first 50 chars): {str(self.shared_secrets[target])[:50]}...")
+           cipher_text, nonce, mac =encrypt.encrypt_message(self.shared_secrets[target], content)
 
-           cipher_text, nonce =encrypt.encrypt_message(self.shared_secrets[target], content)
 
            encrypted_packet={
                "sender": sender,
@@ -135,6 +141,7 @@ class Security_Manager:
                "msg_type": "SECURE_MESSAGE",
                "content": base64.b64encode(cipher_text).decode('utf-8'),
                "c_nonce": base64.b64encode(nonce).decode('utf-8'),
+               "mac":base64.b64encode(mac).decode('utf-8'),
                "encrypted": True
            }
 
@@ -149,19 +156,23 @@ class Security_Manager:
         try:
             sender = encrypt_data["sender"]
             target = encrypt_data["target"]
-            msg_type = encrypt_data["msg_type"]
+            mac = encrypt_data["mac"]
             content = encrypt_data["content"]
             c_nonce = encrypt_data["c_nonce"]
             
+            print(f"[DEBUG] Using shared secret (first 50 chars): {str(self.shared_secrets[sender])[:50]}...")  # For decrypt
+
             content_bytes = base64.b64decode(content)
             nonce_bytes = base64.b64decode(c_nonce)
-            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content_bytes, nonce_bytes)
+            mac_bytes = base64.b64decode(mac)
+            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content_bytes, nonce_bytes, mac_bytes)
+
 
             decrypted_packet={
                 "sender": sender,
                 "target": target,
                 "msg_type": "MESSAGE",
-                "content": plain_txt.decode('utf-8'),
+                "content": plain_txt,
                 "encrypted": False
             }
         except Exception as e:

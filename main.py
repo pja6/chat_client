@@ -52,8 +52,8 @@ class chat_gui:
         
         
     #TODO
-        #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
-        #self.disconnect_button.pack(pady=5)
+        self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
+        self.disconnect_button.pack(pady=5)
 
 # =====================================  GUI FX ================================================
 #   
@@ -73,7 +73,13 @@ class chat_gui:
        except Exception as e:
            messagebox.showerror("Connection Failed", f"Is server running?\n{e}")
     
-    
+    def disconnect(self):
+        if self.connection.secure:
+            self.connection.secure = False
+            print("[SYSTEM] Encrypted conversation terminated")
+        print("[SYSTEM] No active encrypted communication")
+            
+        
     def start_handshake(self):
         target = self.target_entry.get().strip()
         if not target:

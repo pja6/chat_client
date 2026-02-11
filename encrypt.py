@@ -2,7 +2,8 @@
 # Retrieved from: http://en.literateprograms.org/Miller-Rabin_primality_test_(Python)?oldid=17104
 
 from Crypto.Cipher import AES
-import hashlib
+from Crypto.Protocol.KDF import HKDF
+from Crypto.Hash import SHA256, HMAC
 import math
 import random, sys, os
 
@@ -134,13 +135,34 @@ def gen_sym_key(swap_pub_val, priv_key, pub_p):
     
     return shared_secret
 
+def key_derivation(shared_secret):
+    salt = b'CYBR535'
+    
+    # make sure the secret is in bytes
+    if isinstance(shared_secret, int):
+        shared_secret_bytes = shared_secret.to_bytes((shared_secret.bit_length() + 7) // 8, byteorder='big')
+    else:
+        shared_secret_bytes = shared_secret
+    
+    print(f"[DEBUG KDF] Shared secret bytes (hex, first 40): {shared_secret_bytes.hex()[:40]}...")
+    
+    key_enc = HKDF(master=shared_secret_bytes, key_len=32, salt=salt, hashmod=SHA256, context=b"encryption key")
+    key_mac = HKDF(master=shared_secret_bytes, key_len=32, salt=salt, hashmod=SHA256, context=b"MAC key")
+
+    print(f"[DEBUG KDF] key_enc (hex): {key_enc.hex()}")
+    print(f"[DEBUG KDF] key_mac (hex): {key_mac.hex()}")
+
+    return key_enc, key_mac
+
 
 #====================================== AES STREAM CIPHER ========================
 
 def encrypt_message(shared_secret, plain_text):
-    # 32 bytes for AES-256
-
-    key = hashlib.sha256(str(shared_secret).encode()).digest() 
+    
+    
+    key, mac = key_derivation(shared_secret)
+    
+   
     cipher = AES.new(key, AES.MODE_CTR)
     
     nonce = cipher.nonce 
@@ -151,17 +173,54 @@ def encrypt_message(shared_secret, plain_text):
         
     cipher_text = cipher.encrypt(plain_text)
     
-    return cipher_text, nonce
-
-
-def decrypt_message(shared_secret, cipher_text, nonce):
+    h = HMAC.new(mac, digestmod=SHA256)
+    h.update(nonce)
+    h.update(cipher_text)
+    mac_tag = h.digest()
     
-    # 32 bytes for AES-256
-    key = hashlib.sha256(str(shared_secret).encode()).digest()
+    print(f"[DEBUG ENCRYPT] Created MAC (hex): {mac.hex()}")
+    print(f"[DEBUG ENCRYPT] Nonce (hex): {nonce.hex()}")
+    print(f"[DEBUG ENCRYPT] Ciphertext length: {len(cipher_text)}")
+    
+    return cipher_text, nonce, mac_tag
 
-    cipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
+
+def decrypt_message(shared_secret, cipher_text, nonce, u_mac):
+    
+    key_enc, key_mac = key_derivation(shared_secret)
+    
+
+    # DEBUG prints
+    print(f"[DEBUG] Received MAC (hex): {u_mac.hex()}")
+    print(f"[DEBUG] Received MAC length: {len(u_mac)}")
+    print(f"[DEBUG] Nonce (hex): {nonce.hex()}")
+    print(f"[DEBUG] Nonce length: {len(nonce)}")
+    print(f"[DEBUG] Ciphertext length: {len(cipher_text)}")
+            
+    mac = HMAC.new(key_mac, digestmod=SHA256)
+    mac.update(nonce)
+    mac.update(cipher_text)
+    
+    computed_mac = mac.digest()
+       
+    print(f"[DEBUG] Computed MAC (hex): {computed_mac.hex()}")
+    print(f"[DEBUG] Computed MAC length: {len(computed_mac)}")
+    try: 
+        mac.verify(u_mac)
+        print("[SEC_MGR] MAC verification successful")
+    except ValueError as e:
+        print(f"[ENCRYPT] MAC verification failed: {e}")
+        print(f"[ENCRYPT] MACs do not match!")
+        raise Exception("MAC Verification failed - unsecure message")
+
+    # now if it's verified decrypt
+    cipher = AES.new(key_enc, AES.MODE_CTR, nonce=nonce)
     plain_text = cipher.decrypt(cipher_text)
     
+    #handling bytes again just in case
+    if isinstance(plain_text, bytes):
+        plain_text = plain_text.decode('utf-8')
+        
 
     return plain_text
     
