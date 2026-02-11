@@ -222,7 +222,7 @@ def decrypt_message(shared_secret, cipher_text, nonce, u_mac):
         plain_text = plain_text.decode('utf-8')
         
 
-    return plain_text
+    return plain_text, key_enc
     
 
 #This isn't used, was just for testing the RSA code

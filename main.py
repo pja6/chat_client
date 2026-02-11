@@ -44,7 +44,7 @@ class chat_gui:
         self.send_button.pack(pady=5)
         
         #exchange it
-        self.secure_btn = tk.Button(self.gui_window, text="SECURE HANDSHAKE", command = self.start_handshake, fg="green")
+        self.secure_btn = tk.Button(self.gui_window, text="START HANDSHAKE", command = self.decide_handshake, fg="green")
         self.secure_btn.pack(pady=5)
         
         
@@ -52,8 +52,8 @@ class chat_gui:
         
         
     #TODO
-        self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
-        self.disconnect_button.pack(pady=5)
+        #self.disconnect_button = tk.Button(self.gui_window, text="DISCONNECT", command=self.disconnect)
+        #self.disconnect_button.pack(pady=5)
 
 # =====================================  GUI FX ================================================
 #   
@@ -73,11 +73,14 @@ class chat_gui:
        except Exception as e:
            messagebox.showerror("Connection Failed", f"Is server running?\n{e}")
     
-    def disconnect(self):
+    def decide_handshake(self):
         if self.connection.secure:
             self.connection.secure = False
+            target = self.target_entry.get().strip()
+            self.display(f"System: Secure Handshake with {target} terminated")
             print("[SYSTEM] Encrypted conversation terminated")
-        print("[SYSTEM] No active encrypted communication")
+        else:
+            self.start_handshake()
             
         
     def start_handshake(self):
@@ -117,9 +120,12 @@ class chat_gui:
                 
                 elif msg_type == "SECURE_LINK_ESTABLISHED":
                     self.display(f" System: secure link with {sender} established")  
-                    self.secure_btn.config(fg="green", text = "SECURE")              
-                #TODO if encryption happens
-                
+                    self.secure_btn.config(fg="green", text = "END HANDSHAKE")  
+                                
+                elif msg_type == "TERMINATE_LINK":
+                    self.display(f" System: secure link with {sender} terminated")
+                    self.secure_btn.config(fg="green", text = "START HANDSHAKE")              
+  
                 elif msg_type == "MESSAGE":
                     content = msg_data.get("content", "")
                     encrypted = msg_data.get("encrypted", False)

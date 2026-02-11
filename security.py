@@ -1,6 +1,7 @@
 import encrypt
 import json
 import base64
+from collections import OrderedDict
 
 class Security_Manager:
     def __init__(self, username):
@@ -10,6 +11,10 @@ class Security_Manager:
         self.dh_public = None
         # username|secret
         self.shared_secrets = {}
+        self.cached_keys=OrderedDict()
+        self.key_count=1  #key rotation/cache mechanism
+        self.recv_counters = {}   # sender -> expected msg_num
+        self.send_counters = {}   # target -> next msg_num to send
 
 # ============================   DH Exchange ====================================== 
     
@@ -118,7 +123,16 @@ class Security_Manager:
             return False
         
 # ================================================= Encrypt Message ===========================
+    def burn_key(self, key):
+        if len(self.cached_keys) >=3:
+            burned_key=self.cached_keys.popitem(last=False)
+            print(f"[SEC_MGR] expired key: {burned_key}")
+            
+        #print(f"[SEC_MGR] burn_key called. Before: {self.key_count}, keys: {list(self.cached_keys.keys())}")
+        self.cached_keys[self.key_count]=key
+        self.key_count+=1
 
+        print(f"[SEC_MGR] After: {self.key_count}, keys: {list(self.cached_keys.keys())}")
 
     def encrypt_message(self, packet_data):
         try:
@@ -127,13 +141,21 @@ class Security_Manager:
            msg_type  = packet_data["msg_type"]
            content = packet_data["content"]
            
+           
+               
            if target not in self.shared_secrets:
                 print(f"[SEC_MGR] No shared secret for {target}")
                 return False
+           
+           if target not in self.send_counters:
+                self.send_counters[target] = 1
+        
+           msg_num=self.send_counters[target]
             
            print(f"[DEBUG] Using shared secret (first 50 chars): {str(self.shared_secrets[target])[:50]}...")
            cipher_text, nonce, mac =encrypt.encrypt_message(self.shared_secrets[target], content)
 
+           self.send_counters[target] += 1
 
            encrypted_packet={
                "sender": sender,
@@ -142,6 +164,7 @@ class Security_Manager:
                "content": base64.b64encode(cipher_text).decode('utf-8'),
                "c_nonce": base64.b64encode(nonce).decode('utf-8'),
                "mac":base64.b64encode(mac).decode('utf-8'),
+               "msg_num": msg_num,
                "encrypted": True
            }
 
@@ -159,22 +182,42 @@ class Security_Manager:
             mac = encrypt_data["mac"]
             content = encrypt_data["content"]
             c_nonce = encrypt_data["c_nonce"]
+            msg_num=encrypt_data["msg_num"]
             
-            print(f"[DEBUG] Using shared secret (first 50 chars): {str(self.shared_secrets[sender])[:50]}...")  # For decrypt
+            
+            if sender not in self.recv_counters:
+                self.recv_counters[sender] = 1
+                
+            expected = self.recv_counters[sender]
 
-            content_bytes = base64.b64decode(content)
-            nonce_bytes = base64.b64decode(c_nonce)
-            mac_bytes = base64.b64decode(mac)
-            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content_bytes, nonce_bytes, mac_bytes)
+            if msg_num == expected:
+                print(f"[DEBUG] Using shared secret (first 50 chars): {str(self.shared_secrets[sender])[:50]}...") 
 
+                content_bytes = base64.b64decode(content)
+                nonce_bytes = base64.b64decode(c_nonce)
+                mac_bytes = base64.b64decode(mac)
+                plain_txt, key = encrypt.decrypt_message(self.shared_secrets[sender], content_bytes, nonce_bytes, mac_bytes)
+                
+                print(f"[DEBUG] msg_num: {msg_num}, key_count: {self.key_count}")
+                
+                self.recv_counters[sender] += 1
+                self.burn_key(key)
 
-            decrypted_packet={
-                "sender": sender,
-                "target": target,
-                "msg_type": "MESSAGE",
-                "content": plain_txt,
-                "encrypted": False
-            }
+                decrypted_packet={
+                    "sender": sender,
+                    "target": target,
+                    "msg_type": "MESSAGE",
+                    "content": plain_txt,
+                    "msg_num": msg_num,
+                    "encrypted": False
+                }
+            else: 
+                decrypted_packet={
+                    "msg_type": "SYSTEM",
+                    "msg_num": 1,
+                    "content": "Key/Msg Mismatch - resetting"
+                }
+                self.key_count=1
         except Exception as e:
             print(f"[SEC_MGR] Exception in decrypt_message: {e}")
             return False
