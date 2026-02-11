@@ -1,5 +1,6 @@
 import encrypt
 import json
+import base64
 
 class Security_Manager:
     def __init__(self, username):
@@ -75,7 +76,7 @@ class Security_Manager:
                     "signature": response_sig
                 }
                 print(f"[SEC_MGR] Sending DH_RESPONSE back to {sender}")
-                print(f"[SEC_MGR] Response length: {len(response)}")
+                #print(f"[SEC_MGR] Response length: {len(response)}")
                 
                 return json.dumps(response)
             else:
@@ -122,19 +123,18 @@ class Security_Manager:
            msg_type  = packet_data["msg_type"]
            content = packet_data["content"]
            
-           if sender not in self.shared_secrets:
-                print(f"[SEC_MGR] No shared secret for {sender}")
+           if target not in self.shared_secrets:
+                print(f"[SEC_MGR] No shared secret for {target}")
                 return False
 
-           cipher_text, tag, nonce =encrypt.encrypt_message(self.shared_secrets[sender][1], content)
+           cipher_text, nonce =encrypt.encrypt_message(self.shared_secrets[target], content)
 
            encrypted_packet={
                "sender": sender,
                "target": target,
                "msg_type": "SECURE_MESSAGE",
-               "content": cipher_text,
-               "c_tag": tag,
-               "c_nonce": nonce,
+               "content": base64.b64encode(cipher_text).decode('utf-8'),
+               "c_nonce": base64.b64encode(nonce).decode('utf-8'),
                "encrypted": True
            }
 
@@ -145,29 +145,30 @@ class Security_Manager:
         return encrypted_packet
 
     def decrypt_message(self, encrypt_data):
-
+        print(f"[SEC_MGR] Attempting to decrypt...")
         try:
             sender = encrypt_data["sender"]
             target = encrypt_data["target"]
             msg_type = encrypt_data["msg_type"]
             content = encrypt_data["content"]
-            c_tag = encrypt_data["c_data"]
             c_nonce = encrypt_data["c_nonce"]
             
-            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender][1], content, c_tag, c_nonce)
+            content_bytes = base64.b64decode(content)
+            nonce_bytes = base64.b64decode(c_nonce)
+            plain_txt = encrypt.decrypt_message(self.shared_secrets[sender], content_bytes, nonce_bytes)
 
             decrypted_packet={
                 "sender": sender,
                 "target": target,
                 "msg_type": "MESSAGE",
-                "content": plain_txt,
+                "content": plain_txt.decode('utf-8'),
                 "encrypted": False
             }
         except Exception as e:
             print(f"[SEC_MGR] Exception in decrypt_message: {e}")
             return False
         
-        return json.dumps(decrypted_packet)
+        return decrypted_packet
     
 def main():
     print("AES block size:", AES.block_size)

@@ -2,6 +2,7 @@
 # Retrieved from: http://en.literateprograms.org/Miller-Rabin_primality_test_(Python)?oldid=17104
 
 from Crypto.Cipher import AES
+import hashlib
 import math
 import random, sys, os
 
@@ -137,25 +138,30 @@ def gen_sym_key(swap_pub_val, priv_key, pub_p):
 #====================================== AES STREAM CIPHER ========================
 
 def encrypt_message(shared_secret, plain_text):
-    key = shared_secret
+    # 32 bytes for AES-256
+
+    key = hashlib.sha256(str(shared_secret).encode()).digest() 
     cipher = AES.new(key, AES.MODE_CTR)
     
-    nonce = cipher.nonce
-    cipher_text, tag = cipher.encrypt_and_digest(plain_text)
+    nonce = cipher.nonce 
+
+    # ensure plain_text is bytes 
+    if isinstance(plain_text, str):
+        plain_text = plain_text.encode()
+        
+    cipher_text = cipher.encrypt(plain_text)
     
-    return cipher_text, tag, nonce
+    return cipher_text, nonce
 
 
-def decrypt_message(shared_secret, cipher_text, tag, nonce):
-    key = shared_secret
+def decrypt_message(shared_secret, cipher_text, nonce):
+    
+    # 32 bytes for AES-256
+    key = hashlib.sha256(str(shared_secret).encode()).digest()
+
     cipher = AES.new(key, AES.MODE_CTR, nonce=nonce)
     plain_text = cipher.decrypt(cipher_text)
     
-    try: 
-        cipher.verify(tag)
-        print(f"The message is authentic: {plain_text}")
-    except ValueError:
-        print("Key incorrect or message corrupted")
 
     return plain_text
     
